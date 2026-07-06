@@ -5,8 +5,8 @@
 #include "core/config.h"
 
 typedef struct {
-    int car_danger[MAX_HEIGHT][32];  /* 1 if car at position */
-    int water_danger[MAX_HEIGHT];     /* 1 if river lane has no log at frog x */
+    int car_danger[MAX_HEIGHT][MAX_WIDTH];
+    int water_danger[MAX_HEIGHT][MAX_WIDTH];
 } DangerMap;
 
 void danger_compute(DangerMap* dm, const FroggerState* state, const FroggerConfig* cfg);

@@ -4,6 +4,49 @@
 #include <string.h>
 #include <math.h>
 
+static float advance_object_x(float x, float speed, int length, int width) {
+    x += speed * 0.1f;
+    if (speed > 0.0f && x > width + 2) {
+        x = -(float)length - 2.0f;
+    } else if (speed < 0.0f && x + (float)length < -2.0f) {
+        x = (float)(width + 2);
+    }
+    return x;
+}
+
+static int object_covers_tile(float x, int length, int tile_x) {
+    float center = (float)tile_x + 0.5f;
+    return center >= x && center <= x + (float)length;
+}
+
+static int tile_danger_next_tick(const FroggerState* state, const FroggerConfig* cfg, int x, int y) {
+    if (!map_in_bounds(state, x, y)) return 1;
+
+    TileType tile = map_get_tile(state, x, y);
+    if (tile == TILE_ROAD) {
+        int lane = y - cfg->road_start_row;
+        if (lane < 0 || lane >= cfg->road_lanes || lane >= MAX_LANES) return 0;
+        for (int i = 0; i < state->car_count[lane]; i++) {
+            const CarState* car = &state->cars[lane][i];
+            if (!car->active) continue;
+            float car_x = advance_object_x(car->x, car->speed, car->length, state->width);
+            if (object_covers_tile(car_x, car->length, x)) return 1;
+        }
+    } else if (tile == TILE_RIVER) {
+        int lane = y - cfg->river_start_row;
+        if (lane < 0 || lane >= cfg->river_lanes || lane >= MAX_LANES) return 1;
+        for (int i = 0; i < state->log_count[lane]; i++) {
+            const LogState* log = &state->logs[lane][i];
+            if (!log->active) continue;
+            float log_x = advance_object_x(log->x, log->speed, log->length, state->width);
+            if (object_covers_tile(log_x, log->length, x)) return 0;
+        }
+        return 1;
+    }
+
+    return 0;
+}
+
 void obs_compute(const FroggerState* state, Observation* obs, const FroggerConfig* cfg) {
     memset(obs, 0, sizeof(Observation));
     obs->agent_x = state->frog.x;
@@ -25,8 +68,7 @@ void obs_compute(const FroggerState* state, Observation* obs, const FroggerConfi
         }
     }
 
-    /* Car positions in local grid */
-    for (int lane = 0; lane < MAX_LANES; lane++) {
+    for (int lane = 0; lane < cfg->road_lanes && lane < MAX_LANES; lane++) {
         int lane_y = cfg->road_start_row + lane;
         if (lane_y < 0 || lane_y >= state->height) continue;
         for (int i = 0; i < state->car_count[lane]; i++) {
@@ -43,8 +85,7 @@ void obs_compute(const FroggerState* state, Observation* obs, const FroggerConfi
         }
     }
 
-    /* Log positions in local grid */
-    for (int lane = 0; lane < MAX_LANES; lane++) {
+    for (int lane = 0; lane < cfg->river_lanes && lane < MAX_LANES; lane++) {
         int lane_y = cfg->river_start_row + lane;
         if (lane_y < 0 || lane_y >= state->height) continue;
         for (int i = 0; i < state->log_count[lane]; i++) {
@@ -61,7 +102,6 @@ void obs_compute(const FroggerState* state, Observation* obs, const FroggerConfi
         }
     }
 
-    /* Valid actions */
     obs->valid_actions[ACTION_WAIT] = 1;
     if (map_in_bounds(state, state->frog.x, state->frog.y - 1))
         obs->valid_actions[ACTION_UP] = 1;
@@ -72,10 +112,13 @@ void obs_compute(const FroggerState* state, Observation* obs, const FroggerConfi
     if (map_in_bounds(state, state->frog.x + 1, state->frog.y))
         obs->valid_actions[ACTION_RIGHT] = 1;
 
-    /* Distance to goal */
+    obs->danger_up = tile_danger_next_tick(state, cfg, state->frog.x, state->frog.y - 1);
+    obs->danger_down = tile_danger_next_tick(state, cfg, state->frog.x, state->frog.y + 1);
+    obs->danger_left = tile_danger_next_tick(state, cfg, state->frog.x - 1, state->frog.y);
+    obs->danger_right = tile_danger_next_tick(state, cfg, state->frog.x + 1, state->frog.y);
+
     obs->dist_to_goal = (float)absi(state->frog.y - cfg->goal_row);
 
-    /* Nearest car/log distances */
     obs->nearest_car_dist = 999.0f;
     obs->nearest_log_dist = 999.0f;
     for (int lane = 0; lane < MAX_LANES; lane++) {

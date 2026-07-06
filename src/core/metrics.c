@@ -1,5 +1,6 @@
 #include "core/metrics.h"
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
 
 void metrics_init(Metrics* m) {
@@ -12,6 +13,7 @@ void metrics_update(Metrics* m, StepResult result, Action action, float cumulati
     m->total_actions++;
     if (action >= 0 && action < ACTION_COUNT) m->action_counts[action]++;
     if (cumulative > m->max_reward) m->max_reward = cumulative;
+    if (result.done && result.terminal_reason == TERMINAL_TIMEOUT) m->timeouts++;
 }
 
 void metrics_end_episode(Metrics* m, float cumulative, int goals, int deaths) {
@@ -35,6 +37,7 @@ void metrics_print(const Metrics* m) {
     printf("Wins:              %d\n", m->wins);
     printf("Losses:            %d\n", m->losses);
     printf("Deaths:            %d\n", m->deaths);
+    printf("Timeouts:          %d\n", m->timeouts);
     printf("Win rate:          %.1f%%\n", m->episodes > 0 ? 100.0f * m->wins / m->episodes : 0.0f);
     printf("Action distribution:\n");
     const char* names[] = {"UP", "DOWN", "LEFT", "RIGHT", "WAIT"};
