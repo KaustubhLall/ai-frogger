@@ -17,6 +17,7 @@ typedef struct FroggerEnv {
     DangerMap danger;
     RewardBreakdown last_reward;
     IntRingBuffer action_history;
+    Action last_action;
     int prev_frog_y;
     int steps_since_progress;
 } FroggerEnv;
