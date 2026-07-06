@@ -47,6 +47,28 @@ int main(void) {
         assert(flat[i] == flat2[i]);
     }
 
+    memset(env.state.car_count, 0, sizeof(env.state.car_count));
+    memset(env.state.log_count, 0, sizeof(env.state.log_count));
+    env.state.frog.x = 5;
+    env.state.frog.y = cfg.road_start_row;
+    env.state.cars[0][0].x = 6.0f;
+    env.state.cars[0][0].y = cfg.road_start_row;
+    env.state.cars[0][0].length = 1;
+    env.state.cars[0][0].speed = 0.0f;
+    env.state.cars[0][0].active = 1;
+    env.state.car_count[0] = 1;
+    env_observe(&env, &obs);
+    assert(obs.valid_actions[ACTION_RIGHT] == 1);
+    assert(obs.danger_right == 1);
+
+    memset(env.state.car_count, 0, sizeof(env.state.car_count));
+    memset(env.state.log_count, 0, sizeof(env.state.log_count));
+    env.state.frog.x = 5;
+    env.state.frog.y = cfg.river_end_row + 1;
+    env_observe(&env, &obs);
+    assert(obs.valid_actions[ACTION_UP] == 1);
+    assert(obs.danger_up == 1);
+
     printf("test_observation: ALL PASSED (flat_size=%d)\n", flat_size);
     return 0;
 }
