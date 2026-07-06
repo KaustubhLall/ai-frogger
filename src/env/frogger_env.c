@@ -133,7 +133,7 @@ StepResult env_step(FroggerEnv* env, Action action) {
     FroggerState* s = &env->state;
     if (!s->frog.alive) {
         result.done = 1;
-        result.terminal_reason = TERMINAL_DEATH_CAR;
+        result.terminal_reason = TERMINAL_OFF_MAP;
         return result;
     }
     int prev_y = s->frog.y;
@@ -151,7 +151,7 @@ StepResult env_step(FroggerEnv* env, Action action) {
         result.terminal_reason = reason;
         if (reason == TERMINAL_GOAL) s->goals_reached++;
         else if (reason == TERMINAL_DEATH_CAR) { env->last_reward.death_car = env->config.death_penalty; s->frog.alive = 0; s->total_deaths++; }
-        else if (reason == TERMINAL_DEATH_WATER) { env->last_reward.death_water = env->config.drowning_penalty; s->frog.alive = 0; s->total_deaths++; }
+        else if (reason == TERMINAL_DEATH_WATER || reason == TERMINAL_OFF_MAP) { env->last_reward.death_water = env->config.drowning_penalty; s->frog.alive = 0; s->total_deaths++; }
         else if (reason == TERMINAL_TIMEOUT) env->last_reward.timeout = env->config.timeout_penalty;
         env->last_reward.total += env->last_reward.death_car + env->last_reward.death_water + env->last_reward.timeout;
         reward = env->last_reward.total;
