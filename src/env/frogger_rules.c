@@ -64,6 +64,8 @@ int rules_check_drowning(const FroggerState* state) {
 }
 
 TerminalReason rules_check_terminal(const FroggerState* state, const FroggerConfig* cfg) {
+    if (!state->frog.alive) return TERMINAL_OFF_MAP;
+
     TileType tile = map_get_tile(state, state->frog.x, state->frog.y);
 
     if (tile == TILE_GOAL) return TERMINAL_GOAL;
