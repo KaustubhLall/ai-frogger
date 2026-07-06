@@ -6,7 +6,7 @@
 #include "core/config.h"
 
 int rules_try_move(FroggerState* state, Action action, const FroggerConfig* cfg);
-int rules_check_collision(const FroggerState* state);
+int rules_check_collision(const FroggerState* state, const FroggerConfig* cfg);
 int rules_check_drowning(const FroggerState* state);
 TerminalReason rules_check_terminal(const FroggerState* state, const FroggerConfig* cfg);
 
