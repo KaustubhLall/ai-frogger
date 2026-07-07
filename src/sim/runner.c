@@ -5,6 +5,8 @@ void runner_run_single(FroggerEnv* env, Agent* agent, int max_steps, Metrics* me
     Observation obs;
     DebugSnapshot snap;
     float cumulative = 0.0f;
+    TerminalReason reason = TERMINAL_NONE;
+    int steps_taken = 0;
 
     for (int step = 0; step < max_steps; step++) {
         env_observe(env, &obs);
@@ -13,10 +15,15 @@ void runner_run_single(FroggerEnv* env, Agent* agent, int max_steps, Metrics* me
         StepResult result = env_step(env, action);
         cumulative += result.reward;
         metrics_update(metrics, result, action, cumulative);
+        steps_taken++;
 
-        if (result.done) break;
+        if (result.done) {
+            reason = result.terminal_reason;
+            break;
+        }
     }
-    metrics_end_episode(metrics, cumulative, env->state.goals_reached, env->state.total_deaths);
+    metrics_end_episode_full(metrics, cumulative, env->state.goals_reached,
+                             env->state.total_deaths, reason, steps_taken);
 }
 
 void runner_run(const RunConfig* rc, Metrics* metrics) {

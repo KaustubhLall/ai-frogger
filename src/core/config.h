@@ -62,5 +62,6 @@ typedef struct {
 void config_defaults(FroggerConfig* cfg);
 void config_crossing(FroggerConfig* cfg);
 void config_survival(FroggerConfig* cfg);
+int config_load_json(FroggerConfig* cfg, const char* path);
 
 #endif /* FROGGER_CONFIG_H */

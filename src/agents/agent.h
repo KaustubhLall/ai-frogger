@@ -8,7 +8,8 @@ typedef enum {
     AGENT_RANDOM = 0,
     AGENT_SCRIPTED,
     AGENT_HEURISTIC,
-    AGENT_GREEDY
+    AGENT_GREEDY,
+    AGENT_NEURO
 } AgentType;
 
 typedef struct Agent {

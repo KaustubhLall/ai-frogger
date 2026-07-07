@@ -29,3 +29,23 @@ add_test(NAME test_determinism COMMAND test_determinism)
 add_executable(test_replay test_replay.c)
 target_link_libraries(test_replay PRIVATE frogger_core)
 add_test(NAME test_replay COMMAND test_replay)
+
+add_executable(test_neuro_agent test_neuro_agent.c)
+target_link_libraries(test_neuro_agent PRIVATE frogger_core)
+add_test(NAME test_neuro_agent COMMAND test_neuro_agent
+         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+add_executable(test_genetic test_genetic.c)
+target_link_libraries(test_genetic PRIVATE frogger_core)
+add_test(NAME test_genetic COMMAND test_genetic
+         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+add_executable(test_config test_config.c)
+target_link_libraries(test_config PRIVATE frogger_core)
+add_test(NAME test_config COMMAND test_config
+         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+add_executable(test_metrics test_metrics.c)
+target_link_libraries(test_metrics PRIVATE frogger_core)
+add_test(NAME test_metrics COMMAND test_metrics
+         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})

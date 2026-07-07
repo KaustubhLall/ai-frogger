@@ -2,6 +2,7 @@
 #include "agents/agent.h"
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 
 int main(void) {
     FroggerConfig cfg;
@@ -14,8 +15,7 @@ int main(void) {
     Observation obs;
     DebugSnapshot snap;
 
-    const AgentType types[] = {AGENT_RANDOM, AGENT_SCRIPTED, AGENT_HEURISTIC, AGENT_GREEDY};
-    const char* names[] = {"random", "scripted", "heuristic", "greedy"};
+    const AgentType types[] = {AGENT_RANDOM, AGENT_SCRIPTED, AGENT_HEURISTIC, AGENT_GREEDY, AGENT_NEURO};
     int n = (int)(sizeof(types) / sizeof(types[0]));
 
     for (int t = 0; t < n; t++) {
@@ -32,10 +32,30 @@ int main(void) {
         }
     }
 
+    memset(&obs, 0, sizeof(obs));
+    obs.valid_actions[ACTION_UP] = 1;
+    obs.valid_actions[ACTION_RIGHT] = 1;
+    obs.valid_actions[ACTION_WAIT] = 1;
+    obs.danger_up = 1;
+    obs.dist_to_goal = 10.0f;
+    obs.nearest_car_dist = 999.0f;
+    obs.nearest_log_dist = 999.0f;
+
+    agent_init(&agent, AGENT_HEURISTIC);
+    agent_reset(&agent, 123);
+    assert(agent_act(&agent, &obs, &snap) == ACTION_RIGHT);
+
+    agent_init(&agent, AGENT_SCRIPTED);
+    agent_reset(&agent, 123);
+    assert(agent_act(&agent, &obs, &snap) == ACTION_RIGHT);
+
     assert(agent_parse_type("random") == AGENT_RANDOM);
     assert(agent_parse_type("scripted") == AGENT_SCRIPTED);
     assert(agent_parse_type("heuristic") == AGENT_HEURISTIC);
     assert(agent_parse_type("greedy") == AGENT_GREEDY);
+    assert(agent_parse_type("neuro") == AGENT_NEURO);
+    assert(agent_parse_type(NULL) == AGENT_RANDOM);
+    assert(agent_parse_type("unknown") == AGENT_RANDOM);
 
     printf("test_agents: ALL PASSED\n");
     return 0;
