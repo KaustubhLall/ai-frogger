@@ -2,7 +2,7 @@
 
 A deterministic Frogger-style simulation environment, baseline-agent suite, and optional raylib visualizer written in C17.
 
-AI Frogger is built around a simple idea: keep the simulator fast, reproducible, and easy to inspect before adding heavier learning systems. The current repository includes a headless environment, replay support, benchmark tooling, baseline agents, tests, and an optional visualizer. It is training-ready, but it does not pretend to contain a full ML training loop yet.
+AI Frogger is built around a simple idea: keep the simulator fast, reproducible, and easy to inspect before adding heavier learning systems. The repository includes a headless environment, replay support, benchmark tooling, baseline agents, a genetic-algorithm trainer for a linear neuro policy, metrics export, JSON config loading, tests, and an optional visualizer.
 
 ## Highlights
 
@@ -11,11 +11,14 @@ AI Frogger is built around a simple idea: keep the simulator fast, reproducible,
 - **Optional visualizer**: raylib UI for inspecting agents, local observations, rewards, action distributions, and comparisons.
 - **Flat observations**: `obs_to_flat` exposes a compact vector for future Python, C API, or reinforcement-learning bindings.
 - **Baseline policies**: random, scripted, heuristic, and greedy agents for sanity checks and regressions.
+- **Neuro agent + GA trainer**: a linear weighted policy agent with a genetic-algorithm trainer (`frogger_train`).
+- **Metrics export**: CSV and JSON output with per-terminal-reason breakdowns.
+- **JSON config**: load custom configs from `assets/config/default.json` or any JSON file.
 - **CI-friendly build**: the headless target can build and test without fetching visualizer dependencies.
 
 ## Current scope
 
-This project is an environment and evaluation harness, not a finished learning system. The built-in agents are intentionally small baselines:
+This project is an environment and evaluation harness with a lightweight built-in trainer. The built-in agents are intentionally small baselines:
 
 | Agent | Purpose |
 | --- | --- |
@@ -23,8 +26,11 @@ This project is an environment and evaluation harness, not a finished learning s
 | `scripted` | Moves forward when the next tick is safe, otherwise dodges or waits. |
 | `heuristic` | Prioritizes safe forward progress using one-tick-ahead danger features. |
 | `greedy` | Moves toward the goal while ignoring danger, useful as a weak contrast. |
+| `neuro` | Linear weighted policy over flat observations. Weights are trained via `frogger_train` or loaded from a file. |
 
-Good next steps would be a NEAT, genetic algorithm, Q-learning, PPO, or other external trainer that consumes the existing observation vector and writes actions back into the environment.
+The `neuro` agent is a simple linear model (weight matrix over the flat observation vector). It is not a deep network — it demonstrates the training pipeline and weight save/load, not state-of-the-art RL. The genetic algorithm trainer evolves weights via elitism + Gaussian mutation, which is sufficient for small maps but will not scale to complex policies.
+
+Good next steps would be a NEAT, Q-learning, PPO, or other external trainer that consumes the existing observation vector and writes actions back into the environment.
 
 ## Build
 
@@ -64,11 +70,20 @@ Executable paths depend on the generator:
 # Heuristic agent, 1000 episodes
 ./build/src/frogger_headless --agent heuristic --episodes 1000 --seed 1337
 
+# Neuro agent with saved weights
+./build/src/frogger_headless --agent neuro --weights best.bin --episodes 100 --seed 42
+
 # Compare all baseline agents
 ./build/src/frogger_headless --compare --episodes 500 --seed 7
 
 # Save one replay
 ./build/src/frogger_headless --agent heuristic --episodes 1 --seed 42 --replay replay.bin
+
+# Export metrics to CSV/JSON
+./build/src/frogger_headless --agent heuristic --episodes 100 --export-csv metrics.csv --export-json metrics.json
+
+# Load custom config
+./build/src/frogger_headless --agent heuristic --config assets/config/default.json --episodes 100
 ```
 
 On Windows with Visual Studio, use the `build/src/Release/` path instead:
@@ -82,6 +97,21 @@ On Windows with Visual Studio, use the `build/src/Release/` path instead:
 ```bash
 ./build/src/frogger_benchmark --episodes 10000 --seed 1
 ```
+
+### Genetic algorithm trainer
+
+```bash
+# Train a neuro agent for 50 generations
+./build/src/frogger_train --population 20 --generations 50 --episodes 10 --seed 1337 --save best.bin
+
+# Evaluate saved weights
+./build/src/frogger_train --load best.bin --eval 100 --seed 42
+
+# Train with custom config
+./build/src/frogger_train --config assets/config/default.json --generations 30 --save best.bin
+```
+
+Weight files use a binary format with magic bytes (`FNRO`), version, and dimension metadata (action count, weight size, observation flat size) to detect mismatches.
 
 ### Visualizer
 
@@ -146,11 +176,12 @@ Each step applies an action, advances dynamic objects, resolves log riding/colli
 
 ```text
 src/
-  agents/     baseline policies
-  cli/        headless and benchmark executables
+  agents/     baseline policies + neuro agent
+  cli/        headless, benchmark, and trainer executables
   core/       config, RNG, metrics, replay, utility code
   env/        map, state transition, rules, danger, observations, rewards
   sim/        runners, evaluation, benchmarks
+  train/      genetic algorithm trainer
   viz/        optional raylib visualizer
 tests/        CTest-based regression suite
 assets/       default config assets
@@ -170,8 +201,8 @@ For behavior changes, add or update tests that pin the intended transition order
 ## Roadmap ideas
 
 - C ABI or Python binding for external trainers
-- NEAT or genetic-policy baseline
+- NEAT or deeper network policy
 - tabular/Q-learning baseline for small maps
 - replay viewer improvements and replay metadata
-- richer benchmark output such as CSV or JSON
-- config-file loading for custom maps and reward weights
+- richer benchmark output and plotting
+- config-file presets for different map layouts

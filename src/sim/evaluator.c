@@ -2,10 +2,11 @@
 #include "sim/runner.h"
 #include "core/metrics.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 EvalResult evaluator_run(const FroggerConfig* cfg, AgentType type, int episodes, uint64_t seed) {
-    Metrics metrics;
-    metrics_init(&metrics);
+    Metrics* metrics = (Metrics*)malloc(sizeof(Metrics));
+    metrics_init(metrics);
 
     RunConfig rc;
     rc.config = *cfg;
@@ -14,14 +15,15 @@ EvalResult evaluator_run(const FroggerConfig* cfg, AgentType type, int episodes,
     rc.episodes = episodes;
     rc.record_replay = 0;
 
-    runner_run(&rc, &metrics);
+    runner_run(&rc, metrics);
 
     EvalResult r;
-    r.avg_reward = metrics.episodes > 0 ? metrics.total_reward / metrics.episodes : 0.0f;
-    r.win_rate = metrics.episodes > 0 ? (float)metrics.wins / metrics.episodes : 0.0f;
-    r.death_rate = metrics.episodes > 0 ? (float)metrics.deaths / metrics.episodes : 0.0f;
-    r.avg_length = metrics.episodes > 0 ? (float)metrics.total_steps / metrics.episodes : 0.0f;
-    r.episodes = metrics.episodes;
+    r.avg_reward = metrics->episodes > 0 ? metrics->total_reward / metrics->episodes : 0.0f;
+    r.win_rate = metrics->episodes > 0 ? (float)metrics->wins / metrics->episodes : 0.0f;
+    r.death_rate = metrics->episodes > 0 ? (float)metrics->deaths / metrics->episodes : 0.0f;
+    r.avg_length = metrics->episodes > 0 ? (float)metrics->total_steps / metrics->episodes : 0.0f;
+    r.episodes = metrics->episodes;
+    free(metrics);
     return r;
 }
 

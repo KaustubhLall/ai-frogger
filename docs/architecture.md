@@ -21,9 +21,10 @@ Keeping this order explicit matters because an action that looks safe before tra
 | --- | --- |
 | `src/core` | Config, RNG, replay, ring buffer, metrics, and shared utility code. |
 | `src/env` | Map generation, state transitions, collision/risk checks, observations, rewards, and debug snapshots. |
-| `src/agents` | Baseline policies used to sanity-check the environment. These are not learning agents. |
+| `src/agents` | Baseline policies (random, scripted, heuristic, greedy) and the neuro linear policy agent. |
 | `src/sim` | Episode runners, agent comparisons, and benchmark execution. |
-| `src/cli` | Headless executables for repeatable runs and smoke tests. |
+| `src/train` | Genetic algorithm trainer for the neuro agent. |
+| `src/cli` | Headless, benchmark, and trainer executables for repeatable runs and smoke tests. |
 | `src/viz` | Optional raylib UI for stepping through agents, charts, and comparisons. |
 | `tests` | Determinism, environment, observation, reward, replay, and agent behavior coverage. |
 
@@ -33,14 +34,15 @@ For a fixed config, seed, and action sequence, the simulator should produce the 
 
 ## Agent contract
 
-Current built-in agents are baselines:
+Current built-in agents:
 
 - `random`: samples uniformly from valid moves.
 - `scripted`: moves forward when the next tick is safe, otherwise dodges laterally or waits.
 - `heuristic`: prioritizes safe forward progress and uses danger flags to avoid obvious next-tick failures.
 - `greedy`: intentionally ignores danger and moves toward the goal as a weak baseline.
+- `neuro`: linear weighted policy over flat observations. Trained via `frogger_train` (genetic algorithm) or loaded from a binary weight file.
 
-Future learning code should use `Observation` and `obs_to_flat` rather than reaching into `FroggerState` directly.
+Learning code should use `Observation` and `obs_to_flat` rather than reaching into `FroggerState` directly. Weight files include dimension metadata (action count, weight size, observation flat size) to detect format mismatches.
 
 ## What to test before changing behavior
 
@@ -57,6 +59,7 @@ Useful smoke checks:
 ```bash
 ./build/src/frogger_headless --compare --episodes 25 --seed 7
 ./build/src/frogger_benchmark --episodes 1000 --seed 1
+./build/src/frogger_train --population 6 --generations 3 --episodes 2 --seed 42
 ```
 
 On Windows multi-config generators, the executables may live under `build/src/Release/` instead of `build/src/`.

@@ -15,7 +15,7 @@ int main(void) {
     Observation obs;
     DebugSnapshot snap;
 
-    const AgentType types[] = {AGENT_RANDOM, AGENT_SCRIPTED, AGENT_HEURISTIC, AGENT_GREEDY};
+    const AgentType types[] = {AGENT_RANDOM, AGENT_SCRIPTED, AGENT_HEURISTIC, AGENT_GREEDY, AGENT_NEURO};
     int n = (int)(sizeof(types) / sizeof(types[0]));
 
     for (int t = 0; t < n; t++) {
@@ -53,6 +53,7 @@ int main(void) {
     assert(agent_parse_type("scripted") == AGENT_SCRIPTED);
     assert(agent_parse_type("heuristic") == AGENT_HEURISTIC);
     assert(agent_parse_type("greedy") == AGENT_GREEDY);
+    assert(agent_parse_type("neuro") == AGENT_NEURO);
     assert(agent_parse_type(NULL) == AGENT_RANDOM);
     assert(agent_parse_type("unknown") == AGENT_RANDOM);
 

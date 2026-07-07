@@ -13,14 +13,21 @@ add_library(frogger_core STATIC
     env/frogger_observation.c
     env/frogger_reward.c
     agents/agent.c
+    agents/neuro_agent.c
     sim/runner.c
     sim/benchmark.c
     sim/evaluator.c
+    train/genetic.c
 )
 
 target_include_directories(frogger_core PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
+
+# Link math library on Unix-like platforms (neuro_agent uses sqrtf, logf, cosf)
+if(UNIX AND NOT APPLE)
+    target_link_libraries(frogger_core PUBLIC m)
+endif()
 
 # CLI: headless runner
 add_executable(frogger_headless cli/main_headless.c)
@@ -29,6 +36,10 @@ target_link_libraries(frogger_headless PRIVATE frogger_core)
 # CLI: benchmark
 add_executable(frogger_benchmark cli/main_benchmark.c)
 target_link_libraries(frogger_benchmark PRIVATE frogger_core)
+
+# CLI: genetic algorithm trainer
+add_executable(frogger_train cli/main_train.c)
+target_link_libraries(frogger_train PRIVATE frogger_core)
 
 # Visualizer (raylib)
 if(AI_FROGGER_BUILD_VIZ)

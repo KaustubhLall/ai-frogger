@@ -106,16 +106,35 @@ void viz_session_step(VizSession* vs) {
             continue;
         }
 
-        Observation obs;
-        DebugSnapshot snap;
-
         for (int sp = 0; sp < vs->speed_mult; sp++) {
             if (s->episode_done) break;
 
-            env_observe(&s->env, &obs);
-            env_get_debug_snapshot(&s->env, &snap);
-            Action action = agent_act(&s->agent, &obs, &snap);
+            Action action;
+            char decision_label[256];
+
+            if (vs->is_replay) {
+                if (vs->replay_step_idx >= vs->replay_action_count) {
+                    s->episode_done = 1;
+                    break;
+                }
+                action = vs->replay_actions[vs->replay_step_idx];
+                snprintf(decision_label, sizeof(decision_label), "replay: step %d", vs->replay_step_idx);
+                vs->replay_step_idx++;
+            } else {
+                Observation obs;
+                DebugSnapshot snap;
+                env_observe(&s->env, &obs);
+                env_get_debug_snapshot(&s->env, &snap);
+                action = agent_act(&s->agent, &obs, &snap);
+                strncpy(decision_label, s->agent.decision_text, sizeof(decision_label) - 1);
+                decision_label[sizeof(decision_label) - 1] = '\0';
+            }
+
             StepResult result = env_step(&s->env, action);
+
+            s->last_action = action;
+            strncpy(s->last_decision_text, decision_label, sizeof(s->last_decision_text) - 1);
+            s->last_decision_text[sizeof(s->last_decision_text) - 1] = '\0';
 
             dashboard_add_action(&s->dashboard, action);
             dashboard_add_reward(&s->dashboard, result.reward);

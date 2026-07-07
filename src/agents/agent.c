@@ -1,4 +1,5 @@
 #include "agents/agent.h"
+#include "agents/neuro_agent.h"
 #include <string.h>
 
 static int action_is_dangerous(const Observation* obs, Action action) {
@@ -105,6 +106,21 @@ Action agent_act(Agent* agent, const Observation* obs, const DebugSnapshot* snap
             strcpy(agent->decision_text, "greedy: wait");
             return ACTION_WAIT;
         }
+        case AGENT_NEURO: {
+            if (agent->impl) {
+                return neuro_act((NeuroWeights*)agent->impl, obs,
+                                 agent->decision_text, sizeof(agent->decision_text));
+            }
+            strcpy(agent->decision_text, "neuro: no weights (random fallback)");
+            int valid[ACTION_COUNT];
+            int count = 0;
+            for (int a = 0; a < ACTION_COUNT; a++) {
+                if (obs->valid_actions[a]) valid[count++] = a;
+            }
+            if (count == 0) return ACTION_WAIT;
+            int choice = rng_range(&agent->rng, 0, count);
+            return (Action)valid[choice];
+        }
         default:
             return ACTION_WAIT;
     }
@@ -116,5 +132,6 @@ AgentType agent_parse_type(const char* str) {
     if (strcmp(str, "scripted") == 0) return AGENT_SCRIPTED;
     if (strcmp(str, "heuristic") == 0) return AGENT_HEURISTIC;
     if (strcmp(str, "greedy") == 0) return AGENT_GREEDY;
+    if (strcmp(str, "neuro") == 0) return AGENT_NEURO;
     return AGENT_RANDOM;
 }

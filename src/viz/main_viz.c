@@ -2,6 +2,7 @@
 #include "env/env.h"
 #include "env/frogger_observation.h"
 #include "agents/agent.h"
+#include "agents/neuro_agent.h"
 #include "core/replay.h"
 #include "viz/renderer.h"
 #include "viz/dashboard.h"
@@ -149,6 +150,10 @@ static void draw_arena_view(VizSession* vs, int screen_w, int screen_h) {
     DebugSnapshot snap;
     env_observe(&s->env, &obs);
     env_get_debug_snapshot(&s->env, &snap);
+    snap.last_action = s->last_action;
+    strncpy(snap.decision_text, s->last_decision_text, sizeof(snap.decision_text) - 1);
+    snap.decision_text[sizeof(snap.decision_text) - 1] = '\0';
+    snap.cumulative_reward = s->current_reward;
 
     int tile_size = TILE_SIZE;
     int arena_w = snap.state.width * tile_size;
@@ -171,7 +176,7 @@ static void draw_arena_view(VizSession* vs, int screen_w, int screen_h) {
                                right_ox, 50, right_w, 120, 5.0f);
     renderer_draw_action_dist(s->dashboard.action_counts, s->dashboard.total_actions,
                               right_ox, 180, right_w, 130);
-    renderer_draw_decision_trace(snap.decision_text, right_ox, 320, right_w, 60);
+    renderer_draw_decision_trace(s->last_decision_text, right_ox, 320, right_w, 60);
     renderer_draw_event_log((const char**)s->dashboard.events, s->dashboard.event_count,
                             right_ox, 390, right_w, 150);
     renderer_draw_controls(right_ox, 550, right_w, 120, vs->paused, vs->speed_mult);
@@ -232,6 +237,9 @@ int main(int argc, char** argv) {
     uint64_t seed = 1337;
     int max_epochs = 500;
     const char* replay_file = NULL;
+    const char* weights_file = NULL;
+    NeuroWeights neuro_weights;
+    int has_neuro_weights = 0;
 
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--agent") == 0 && i + 1 < argc) {
@@ -242,13 +250,16 @@ int main(int argc, char** argv) {
             max_epochs = atoi(argv[++i]);
         } else if (strcmp(argv[i], "--replay") == 0 && i + 1 < argc) {
             replay_file = argv[++i];
+        } else if (strcmp(argv[i], "--weights") == 0 && i + 1 < argc) {
+            weights_file = argv[++i];
         } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
             printf("Usage: frogger_viz [options]\n");
             printf("Options:\n");
-            printf("  --agent <type>   Agent type (repeat for multiple): random, scripted, heuristic, greedy\n");
+            printf("  --agent <type>   Agent type (repeat for multiple): random, scripted, heuristic, greedy, neuro\n");
             printf("  --seed <n>       Random seed (default 1337)\n");
             printf("  --epochs <n>     Max epochs to run (default 500)\n");
             printf("  --replay <file>  Load replay file instead of live mode\n");
+            printf("  --weights <file> Load trained neuro weights (for --agent neuro)\n");
             printf("  --help           Show this help\n");
             printf("\nControls:\n");
             printf("  [SPACE]   Pause/Resume\n");
@@ -268,6 +279,14 @@ int main(int argc, char** argv) {
         agent_names[agent_count++] = "greedy";
     }
 
+    if (weights_file) {
+        if (neuro_weights_load(&neuro_weights, weights_file)) {
+            has_neuro_weights = 1;
+        } else {
+            fprintf(stderr, "Failed to load weights from %s\n", weights_file);
+        }
+    }
+
     InitWindow(SCREEN_W, SCREEN_H, "AI Frogger - Visualizer");
     SetTargetFPS(60);
     renderer_init(SCREEN_W, SCREEN_H);
@@ -284,10 +303,11 @@ int main(int argc, char** argv) {
         if (replay_load(replay, replay_file)) {
             cfg = replay->config;
             viz_session_add_agent(&vs, AGENT_RANDOM, "replay", &cfg);
-            AgentSession* s = &vs.sessions[0];
-            for (int i = 0; i < replay->action_count; i++) {
-                env_step(&s->env, replay->actions[i]);
-            }
+            vs.is_replay = 1;
+            vs.replay_action_count = replay->action_count;
+            vs.replay_step_idx = 0;
+            memcpy(vs.replay_actions, replay->actions,
+                   sizeof(Action) * (size_t)replay->action_count);
         } else {
             fprintf(stderr, "Failed to load replay: %s\n", replay_file);
         }
@@ -295,7 +315,10 @@ int main(int argc, char** argv) {
     } else {
         for (int i = 0; i < agent_count; i++) {
             AgentType type = agent_parse_type(agent_names[i]);
-            viz_session_add_agent(&vs, type, agent_names[i], &cfg);
+            int idx = viz_session_add_agent(&vs, type, agent_names[i], &cfg);
+            if (type == AGENT_NEURO && has_neuro_weights && idx >= 0) {
+                vs.sessions[idx].agent.impl = &neuro_weights;
+            }
         }
     }
 
@@ -320,18 +343,21 @@ int main(int argc, char** argv) {
         }
 
         BeginDrawing();
-        ClearBackground((Color){15, 15, 20, 255});
+        ClearBackground((Color){12, 12, 18, 255});
 
-        DrawText("AI Frogger - Training Sandbox", 8, 2, 16, (Color){200, 200, 220, 255});
-        draw_agent_tabs(&vs, 8, 22, SCREEN_W - 16);
+        int sw = GetScreenWidth();
+        int sh = GetScreenHeight();
+
+        DrawText("AI Frogger", 8, 2, 18, (Color){220, 220, 240, 255});
+        draw_agent_tabs(&vs, 8, 24, sw - 16);
 
         const char* view_names[] = {"Arena", "Graphs", "Comparison"};
-        DrawText(view_names[vs.view_mode], SCREEN_W - 100, 4, 12, (Color){150, 150, 170, 255});
+        DrawText(view_names[vs.view_mode], sw - 100, 6, 12, (Color){150, 150, 170, 255});
 
         switch (vs.view_mode) {
-            case VIEW_ARENA:       draw_arena_view(&vs, SCREEN_W, SCREEN_H); break;
-            case VIEW_GRAPHS:      draw_graphs_view(&vs, SCREEN_W, SCREEN_H); break;
-            case VIEW_COMPARISON:  draw_comparison_view(&vs, SCREEN_W, SCREEN_H); break;
+            case VIEW_ARENA:       draw_arena_view(&vs, sw, sh); break;
+            case VIEW_GRAPHS:      draw_graphs_view(&vs, sw, sh); break;
+            case VIEW_COMPARISON:  draw_comparison_view(&vs, sw, sh); break;
         }
 
         EndDrawing();

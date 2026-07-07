@@ -7,6 +7,12 @@
 
 #define MAX_REPLAY_ACTIONS MAX_REPLAY_STEPS
 
+#define REPLAY_MAGIC0 'F'
+#define REPLAY_MAGIC1 'R'
+#define REPLAY_MAGIC2 'P'
+#define REPLAY_MAGIC3 'L'
+#define REPLAY_VERSION 1
+
 typedef struct {
     FroggerConfig config;
     uint64_t seed;

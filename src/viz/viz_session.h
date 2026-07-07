@@ -36,6 +36,8 @@ typedef struct {
     float current_reward;
     int current_step;
     int episode_done;
+    Action last_action;
+    char last_decision_text[256];
 
     DashboardState dashboard;
 } AgentSession;
@@ -51,6 +53,11 @@ typedef struct {
     int auto_advance_epoch;
     ViewMode view_mode;
     uint64_t base_seed;
+
+    int is_replay;
+    int replay_action_count;
+    int replay_step_idx;
+    Action replay_actions[MAX_REPLAY_ACTIONS];
 } VizSession;
 
 void viz_session_init(VizSession* vs, int max_epochs, uint64_t base_seed);
